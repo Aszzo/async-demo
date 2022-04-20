@@ -1,50 +1,21 @@
-use anyhow::Result;
-use serde_yaml::Value;
-// use std::fs;
-use toml::from_str;
-use tokio::{fs, try_join};
+use async_demo::{TimerFuture, new_executor_and_spawner};
+use std::time::{ Duration, SystemTime};
+use std::io::Error;
 
-// 1. 同步形式 time = 同步任务耗时之和
-// fn main() -> Result<()> {
-//     let content1 = fs::read_to_string("Cargo.toml")?;
-//     let content2 = fs::read_to_string("Cargo.lock")?;
-//
-//     let value1 = toml2yml(&content1)?;
-//     let value2 = toml2yml(&content2)?;
-//
-//     fs::write("tmp/Cargo.yml", &value1)?;
-//     fs::write("tmp/Cargo.lock.yml", &value2)?;
-//
-//     println!("执行完毕");
-//
-//     Ok(())
-//
-//
-// }
+fn main() -> Result<(), Error>{
+    println!("{:?}",SystemTime::now());
+    let (executor, spawner) = new_executor_and_spawner();
 
-// 2. 异步 time = 耗时最长的任务
-#[tokio::main]
-async fn main() -> Result<()>{
-    let f1 = fs::read_to_string("Cargo.toml");
-    let f2 = fs::read_to_string("Cargo.lock");
+    spawner.spawn(async {
+        println!("ready");
+        // 创建定时器Future，并等待它完成
+        TimerFuture::new(Duration::new(2, 0)).await;
+        println!("done!");
+    });
 
-    let (content1, content2) = try_join!(f1,f2)?;
+    drop(spawner);
 
-    let value1 = toml2yml(&content1)?;
-    let value2 = toml2yml(&content2)?;
-
-    let f3 = fs::write("tmp/Cargo.yml", &value1);
-    let f4 = fs::write("tmp/Cargo.lock.yml", &value2);
-
-    try_join!(f3, f4)?;
-
-    println!("执行完毕");
+    executor.run();
 
     Ok(())
-
-}
-
-fn toml2yml(content: &str) -> Result<String> {
-    let value = from_str::<Value>(content)?;
-    Ok(serde_yaml::to_string(&value)?)
 }
